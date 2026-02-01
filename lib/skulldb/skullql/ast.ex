@@ -98,15 +98,6 @@ defmodule Skulldb.SkullQL.AST do
     defstruct [:left, :rel, :right]
   end
 
-  defmodule OrderBy do
-    @type t :: %__MODULE__{
-      items: [OrderByItem.t()]
-    }
-
-    @enforce_keys [:items]
-    defstruct [:items]
-  end
-
   defmodule OrderByItem do
     @type t :: %__MODULE__{
       var: String.t() | atom(),
@@ -116,6 +107,15 @@ defmodule Skulldb.SkullQL.AST do
 
     @enforce_keys [:var, :property, :direction]
     defstruct [:var, :property, :direction]
+  end
+
+  defmodule OrderBy do
+    @type t :: %__MODULE__{
+      items: [OrderByItem.t()]
+    }
+
+    @enforce_keys [:items]
+    defstruct [:items]
   end
 
   defmodule Match do

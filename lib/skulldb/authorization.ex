@@ -87,15 +87,13 @@ defmodule Skulldb.Authorization do
 
   # Private functions
 
-  defp check_tenant_access(tenant_id, _resource_type, resource_id) when is_nil(resource_id) do
+  defp check_tenant_access(_tenant_id, _resource_type, resource_id) when is_nil(resource_id) do
     # Creating new resource, no need to check existing resource
     :ok
   end
 
   defp check_tenant_access(tenant_id, resource_type, resource_id) do
     # Check if resource belongs to the tenant
-    alias Skulldb.Graph
-
     case get_resource(resource_type, resource_id) do
       nil ->
         {:error, :not_found}

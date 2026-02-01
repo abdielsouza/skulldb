@@ -99,7 +99,7 @@ defmodule Skulldb.AuditLog do
 
   # Private functions
 
-  defp matches_filters?(node, []), do: true
+  defp matches_filters?(_node, []), do: true
 
   defp matches_filters?(node, [{key, value} | rest]) do
     node_value = Map.get(node.properties, key)
