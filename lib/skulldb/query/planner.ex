@@ -1,7 +1,7 @@
 defmodule Skulldb.Query.Planner do
   alias Skulldb.Query.Plan.Filter
   alias Skulldb.SkullQL.AST
-  alias AST.{Query, Match, Pattern, Node, Rel, Where, Return, Expr}
+  alias AST.{Query, Match, Pattern, Node, Rel, Where, Expr}
 
   alias Skulldb.Query.Plan
   alias Plan.{

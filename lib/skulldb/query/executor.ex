@@ -57,9 +57,9 @@ defmodule Skulldb.Query.Executor do
       case {val1, val2, dir} do
         {v, v, _} -> {:cont, :eq}
         {v1, v2, :asc} when v1 < v2 -> {:halt, true}
-        {v1, v2, :asc} -> {:halt, false}
+        {_v1, _v2, :asc} -> {:halt, false}
         {v1, v2, :desc} when v1 > v2 -> {:halt, true}
-        {v1, v2, :desc} -> {:halt, false}
+        {_v1, _v2, :desc} -> {:halt, false}
       end
     end) != false
   end
