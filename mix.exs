@@ -22,9 +22,21 @@ defmodule Skulldb.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      # {:dep_from_hexpm, "~> 0.3.0"},
-      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
-      {:uuid, "~> 1.1.8"}
+      # Core dependencies
+      {:uuid, "~> 1.1.8"},
+
+      # HTTP Server and API
+      {:plug_cowboy, "~> 2.7"},
+      {:plug, "~> 1.15"},
+      {:jason, "~> 1.4"},
+
+      # Authentication (TODO: Add proper JWT and crypto libraries)
+      # {:joken, "~> 2.6"},
+      # {:argon2_elixir, "~> 4.0"},
+
+      # Development and testing
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 end

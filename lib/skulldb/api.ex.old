@@ -1,0 +1,361 @@
+defmodule Skulldb.API do
+  @moduledoc """
+  Public API for Skulldb operations with context-aware security.
+  All operations support optional context for authentication and tenant isolation.
+  """
+
+  alias Skulldb.Graph.Engine
+  alias Skulldb.Graph.TransactionManager
+  alias Skulldb.Graph
+  alias Skulldb.{Context, Authorization, AuditLog}
+
+  @doc """
+  Creates a new node with optional context for tenant isolation.
+
+  ## Examples
+
+      iex> Skulldb.API.create_node([:Person], %{name: "John"})
+      {:ok, node}
+
+      iex> context = Skulldb.Context.from_token(token)
+      iex> Skulldb.API.create_node(context, [:Person], %{name: "John"})
+      {:ok, node}
+
+  """
+  def create_node(labels \\ [], props \\ [])
+
+  def create_node(%Context{} = context, labels, props) do
+    with :ok <- Authorization.authorize(context, :create, :node) do
+      # Add tenant_id to properties for isolation
+      enhanced_props = maybe_add_tenant(props, context)
+      result = Engine.create_node(labels, enhanced_props)
+      AuditLog.log(context, :create_node, %{labels: labels, props: enhanced_props})
+      result
+    end
+  end
+
+  def create_node(labels, props) do
+    create_node(Context.anonymous(), labels, props)
+  end
+
+  @doc """
+  Creates a new node within a transaction with optional context.
+  """
+  def create_node(%Context{} = context, tx, labels, props) do
+    with :ok <- Authorization.authorize(context, :create, :node) do
+      enhanced_props = maybe_add_tenant(props, context)
+      result = Graph.create_node(tx, labels, enhanced_props)
+      AuditLog.log(context, :create_node, %{labels: labels, props: enhanced_props})
+      result
+    end
+  end
+
+  def create_node(tx, labels, props) do
+    create_node(Context.anonymous(), tx, labels, props)
+  end
+
+  @doc """
+  Creates a new edge between two nodes.
+  """
+  def create_edge(from_id, to_id, label, props \\ []) do
+    Engine.create_edge(from_id, to_id, label, props)
+  end
+
+  @doc """
+  Creates a new edge within a transaction.
+  """
+  def create_edge(tx, type, from, to, props) do
+    Graph.create_edge(tx, type, from, to, props)
+  end
+
+  @doc """
+  Executes a SkullQL query with optional context for authorization.
+
+  ## Examples
+
+      iex> Skulldb.API.query("MATCH (n:Person) RETURN n")
+      {:ok, results}
+
+      iex> context = Skulldb.Context.from_token(token)
+      iex> Skulldb.API.query(context, "MATCH (n:Person) RETURN n")
+      {:ok, results}
+
+  """
+  def query(%Context{} = context, query_string) do
+    with :ok <- Authorization.authorize(context, :query, :graph) do
+      result = Skulldb.Query.read_from_string(query_string, context)
+      AuditLog.log(context, :query, %{query: query_string})
+      result
+    end
+  end
+
+  def query(query_string) do
+    query(Context.anonymous(), query_string)
+  end
+
+  @doc """
+  Starts a transaction.
+  """
+  def begin_transaction do
+    Skulldb.Graph.TxEngine.begin()
+  end
+
+  @doc """
+  Commits a transaction.
+  """
+  def commit_transaction(tx) do
+    TransactionManager.commit(tx)
+  end
+
+  @doc """
+  Rolls back a transaction.
+  """
+  def rollback_transaction(tx) do
+    TransactionManager.rollback(tx)
+  end
+
+  # ========================================
+  # CRUD functions with transactions.
+  # ========================================
+
+  @doc """
+  Updates a node within a transaction with authorization.
+  """
+  def update_node(%Context{} = context, tx, id, changes) do
+    with :ok <- Authorization.authorize(context, :update, :node, id) do
+      result = Graph.update_node(tx, id, changes)
+      AuditLog.log(context, :update_node, %{node_id: id, changes: changes})
+      result
+    end with authorization.
+  """
+  def delete_node(%Context{} = context, tx, id) do
+    with :ok <- Authorization.authorize(context, :delete, :node, id) do
+      result = Graph.delete_node(tx, id)
+      AuditLog.log(context, :delete_node, %{node_id: id})
+      result
+    end
+  end
+
+  def delete_node(tx, id) do
+    delete_node(Context.anonymous(), id, changes) do
+    update_node(Context.anonymous(), tx, id, changes)
+  end
+
+  @doc """
+  Deletes a node with optional tenant filtering.
+  """
+  def all_nodes(%Context{} = context) do
+    with :ok <- Authorization.authorize(context, :read, :node) do
+      nodes = Graph.all_nodes()
+      filter_by_tenant(nodes, context)
+    end
+  end
+
+  def all_nodes do
+    all_nodes(Context.anonymous()e(tx, id)
+  end
+
+  @doc """
+  Deletes an edge within a transaction.
+  """
+  def delete_edge(tx, id) do
+    Graph.delete_edge(tx, id)
+  end
+
+  # ========================================
+  # Read functions.
+  # ========================================
+
+  @doc """
+  Gets all nodes with optional tenant filtering.
+  """
+  def all_nodes(%Context{} = context) do
+    with :ok <- Authorization.authorize(context, :read, :node) do
+      nodes = Graph.all_nodes()
+      filter_by_tenant(nodes, context)
+    end
+  end
+
+  def all_nodes do
+    all_nodes(Context.anonymous())
+  end
+
+  @doc """
+  Gets all edges.
+  """
+  def all_edges do
+    Graph.all_edges()
+  end
+
+  @doc """
+  Gets a node by ID with authorization check.
+  """
+  def get_node(%Context{} = context, node_id) do
+    with :ok <- Authorization.authorize(context, :read, :node, node_id) do
+      Graph.get_node(node_id)
+    end
+  end
+
+  def get_node(node_id) do
+    get_node(Context.anonymous(), node_id)
+  end
+
+  @doc """
+  Gets an edge by ID.
+  """
+  def get_edge(edge_id) do
+    Graph.get_edge(edge_id)
+  end
+
+  # ========================================
+  # Utilities.
+  # ========================================
+
+  @doc """
+  Gets nodes by label.
+  """
+  def nodes_by_label(label) do
+    Graph.nodes_by_label(label)
+  end
+
+  @doc """
+  Gets nodes by property.
+  """
+  def nodes_by_property(key, value) do
+    Graph.nodes_by_property(key, value)
+  end
+
+  @doc """
+  Gets outgoing edges for a node.
+  """
+  def out_edges(node_id) do
+    Graph.out_edges(node_id)
+  end
+
+  @doc """
+  Gets incoming edges for a node.
+  """
+  def in_edges(node_id) do
+    Graph.in_edges(node_id)
+  end
+
+  @doc """
+  Expands a node by relationship type and direction.
+  """
+  def expand(node, rel_type, direction) do
+    Graph.expand(node, rel_type, direction)
+  end
+
+  @doc """
+  Clears all data.
+  """
+  def clear_all do
+    Graph.clear_all()
+  end
+
+  # ========================================
+  # Statistics.
+  # ========================================
+
+  @doc """
+  Gets node count.
+  """
+  def node_count do
+    Graph.node_count()
+  end
+
+  @doc """
+  Gets edge count.
+  """
+  def edge_count do
+    Graph.edge_count()
+  end
+
+  @doc """
+  Gets graph statistics.
+  """
+  def stats do
+    Graph.stats()
+  end
+
+  @doc """
+  Gets labels used.
+  """
+  def labels_used do
+    Graph.labels_used()
+  end
+
+  @doc """
+  Gets edge types used.
+  """
+  def edge_types_used do
+    Graph.edge_types_used()
+  end
+
+  # ========================================
+  # Advanced Traversal.
+  # ========================================
+
+  @doc """
+  Performs BFS from a node.
+  """
+  def bfs(start_id, rel_type \\ nil, direction \\ :out) do
+    Graph.bfs(start_id, rel_type, direction)
+  end
+
+  @doc """
+  Finds shortest path between two nodes.
+  """
+  def shortest_path(start_id, end_id, rel_type \\ nil, direction \\ :out) do
+    Graph.shortest_path(start_id, end_id, rel_type, direction)
+  end
+
+  # ========================================
+  # Utility functions.
+  # ========================================
+
+  @doc """
+  Checks if a node exists.
+  """
+  def node_exists?(node_id) do
+    Graph.node_exists?(node_id)
+  end
+
+  @doc """
+  Checks if an edge exists.
+  """
+  def edge_exists?(edge_id) do
+    Graph.edge_exists?(edge_id)
+  end
+
+  @doc """
+  Gets neighbors of a node.
+  """
+  def neighbors(node_id) do
+    Graph.neighbors(node_id)
+  end
+
+  # ========================================
+  # Private helper functions.
+  # ========================================
+
+  defp maybe_add_tenant(props, %Context{tenant_id: nil}), do: props
+
+  defp maybe_add_tenant(props, %Context{tenant_id: tenant_id}) do
+    Keyword.put(props, :tenant_id, tenant_id)
+  end
+
+  defp filter_by_tenant(nodes, %Context{tenant_id: nil}), do: nodes
+
+  defp filter_by_tenant(nodes, %Context{tenant_id: tenant_id, roles: roles}) do
+    # Admins can see all nodes
+    if :admin in roles do
+      nodes
+    else
+      Enum.filter(nodes, fn node ->
+        node_tenant = Map.get(node.properties, :tenant_id)
+        is_nil(node_tenant) or node_tenant == tenant_id
+      end)
+    end
+  end
+end
