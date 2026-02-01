@@ -1,6 +1,6 @@
 defmodule Skulldb.Query.Executor do
   alias Skulldb.Query.Plan
-  alias Plan.{NodeScan, IndexScan, Expand, Filter, Project, Pipe}
+  alias Plan.{NodeScan, IndexScan, Expand, Filter, Project, Pipe, OrderBy}
   alias Skulldb.Graph
   alias Skulldb.SkullQL.AST
 
@@ -16,13 +16,13 @@ defmodule Skulldb.Query.Executor do
     end)
   end
 
-  defp exec(%NodeScan{var: var}, tx) do
-    Graph.all_nodes(tx)
+  defp exec(%NodeScan{var: var}, _tx) do
+    Graph.all_nodes()
     |> Enum.map(fn node -> %{var => node} end)
   end
 
-  defp exec(%IndexScan{label: label, var: var}, tx) do
-    Graph.nodes_by_label(tx, label)
+  defp exec(%IndexScan{label: label, var: var}, _tx) do
+    Graph.nodes_by_label(label)
     |> Enum.map(fn node -> %{var => node} end)
   end
 
@@ -33,14 +33,35 @@ defmodule Skulldb.Query.Executor do
 
   defp exec(%Project{items: items, input: input}, tx) do
     exec(input, tx)
-    |> Enum.map(fn row ->
-      Enum.map(items, fn
-        %{var: var, property: nil} -> Map.fetch!(row, var)
-        %{var: var, property: prop} ->
-          node = Map.fetch!(row, var)
-          Map.fetch!(node.properties, prop)
-      end)
+    |> Enum.map(fn row -> project_row(items, row) end)
+  end
+
+  defp exec(%OrderBy{items: items, input: input}, tx) do
+    exec(input, tx)
+    |> Enum.sort(fn row1, row2 ->
+      compare_rows(row1, row2, items)
     end)
+  end
+
+  defp compare_rows(row1, row2, items) do
+    Enum.reduce_while(items, :eq, fn %{var: var, property: prop, direction: dir}, _acc ->
+      val1 = case prop do
+        nil -> Map.fetch!(row1, var)
+        _ -> Map.fetch!(row1, "#{var}.#{prop}")
+      end
+      val2 = case prop do
+        nil -> Map.fetch!(row2, var)
+        _ -> Map.fetch!(row2, "#{var}.#{prop}")
+      end
+
+      case {val1, val2, dir} do
+        {v, v, _} -> {:cont, :eq}
+        {v1, v2, :asc} when v1 < v2 -> {:halt, true}
+        {v1, v2, :asc} -> {:halt, false}
+        {v1, v2, :desc} when v1 > v2 -> {:halt, true}
+        {v1, v2, :desc} -> {:halt, false}
+      end
+    end) != false
   end
 
   defp fix_expand_into(%NodeScan{var: var}), do: var
@@ -68,10 +89,13 @@ defmodule Skulldb.Query.Executor do
   end
 
   defp project_row(items, row) do
-    Enum.into(items, %{}, fn %{var: var, property: prop} ->
-      node = Map.fetch!(row, var)
-      value = Map.fetch!(node.properties, prop)
-      {"#{var}.#{prop}", value}
+    Enum.into(items, %{}, fn
+      %{var: var, property: nil} ->
+        {var, Map.fetch!(row, var)}
+      %{var: var, property: prop} ->
+        node = Map.fetch!(row, var)
+        value = Map.fetch!(node.properties, prop)
+        {"#{var}.#{prop}", value}
     end)
   end
 

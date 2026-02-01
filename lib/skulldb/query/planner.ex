@@ -10,7 +10,8 @@ defmodule Skulldb.Query.Planner do
     Expand,
     Filter,
     Project,
-    Pipe
+    Pipe,
+    OrderBy
   }
 
   # ------------------
@@ -22,6 +23,7 @@ defmodule Skulldb.Query.Planner do
     |> plan_match()
     |> plan_where(query.where)
     |> plan_return(query.return)
+    |> plan_order_by(query.order_by)
   end
 
   # ------------------
@@ -87,7 +89,13 @@ defmodule Skulldb.Query.Planner do
     %Filter{expr: expr, input: plan}
   end
 
-  defp plan_return(plan, %Return{items: items}) do
+  defp plan_return(plan, %Skulldb.SkullQL.AST.Return{items: items}) do
     %Project{items: items, input: plan}
+  end
+
+  defp plan_order_by(plan, nil), do: plan
+
+  defp plan_order_by(plan, %Skulldb.SkullQL.AST.OrderBy{items: items}) do
+    %OrderBy{items: items, input: plan}
   end
 end

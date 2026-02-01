@@ -79,17 +79,6 @@ defmodule Skulldb.SkullQL.AST do
     defstruct [:var, :property]
   end
 
-  defmodule Pattern do
-    @type t :: %__MODULE__{
-      left: Expr.t(),
-      rel: Rel.t(),
-      right: Expr.t()
-    }
-
-    @enforce_keys [:left, :rel, :right]
-    defstruct [:left, :rel, :right]
-  end
-
   defmodule Return do
     @type t :: %__MODULE__{
       items: [ReturnItem.t()]
@@ -97,6 +86,36 @@ defmodule Skulldb.SkullQL.AST do
 
     @enforce_keys [:items]
     defstruct [:items]
+  end
+
+  defmodule Pattern do
+    @type t :: %__MODULE__{
+      left: Expr.t(),
+      rel: Rel.t(),
+      right: Expr.t()
+    }
+
+    defstruct [:left, :rel, :right]
+  end
+
+  defmodule OrderBy do
+    @type t :: %__MODULE__{
+      items: [OrderByItem.t()]
+    }
+
+    @enforce_keys [:items]
+    defstruct [:items]
+  end
+
+  defmodule OrderByItem do
+    @type t :: %__MODULE__{
+      var: String.t() | atom(),
+      property: term(),
+      direction: :asc | :desc
+    }
+
+    @enforce_keys [:var, :property, :direction]
+    defstruct [:var, :property, :direction]
   end
 
   defmodule Match do
@@ -117,9 +136,10 @@ defmodule Skulldb.SkullQL.AST do
     @type t :: %__MODULE__{
       match: Match.t(),
       where: Where.t(),
-      return: Return.t()
+      return: Return.t(),
+      order_by: OrderBy.t()
     }
 
-    defstruct [:match, :where, :return]
+    defstruct [:match, :where, :return, :order_by]
   end
 end

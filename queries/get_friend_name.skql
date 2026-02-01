@@ -1,1 +1,0 @@
-MATCH (u:User)-[:FRIEND]->(f) WHERE f.age >= 18 RETURN f.name;

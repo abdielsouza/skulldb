@@ -3,16 +3,23 @@ defmodule Skulldb.Application do
 
   @impl true
   def start(_type, _args) do
-    Skulldb.Graph.Engine.init()
+    # Load configuration
+    data_dir = Application.get_env(:skulldb, :data_dir, "data")
+    Application.put_env(:skulldb, :data_dir, data_dir)
+
     children = [
-      # Starts a worker by calling: Skulldb.Worker.start_link(arg)
-      # {Skulldb.Worker, arg}
-      Skulldb.Graph.TransactionManager
+      Skulldb.Graph.WAL,
+      Skulldb.Graph.TransactionManager,
+      Skulldb.Graph.Indexes,
+      Skulldb.Graph.Store
     ]
 
-    # See https://hexdocs.pm/elixir/Supervisor.html
-    # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Skulldb.Supervisor]
-    Supervisor.start_link(children, opts)
+    {:ok, _pid} = Supervisor.start_link(children, opts)
+
+    Skulldb.Graph.WAL.reset()
+    Skulldb.Graph.Engine.init()
+
+    {:ok, self()}
   end
 end

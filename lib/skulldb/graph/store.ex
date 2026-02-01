@@ -1,12 +1,18 @@
 defmodule Skulldb.Graph.Store do
+  use GenServer
+
   @nodes :skulldb_nodes
   @edges :skulldb_edges
 
-  @spec init() :: :ok
-  def init do
+  def start_link(_) do
+    GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
+  end
+
+  @impl true
+  def init(_) do
     :ets.new(@nodes, [:set, :public, :named_table, read_concurrency: true])
     :ets.new(@edges, [:set, :public, :named_table, read_concurrency: true])
-    :ok
+    {:ok, %{}}
   end
 
   @spec put_node(Skulldb.Graph.Node.t()) :: true
@@ -28,10 +34,10 @@ defmodule Skulldb.Graph.Store do
   def delete_edge(id), do: :ets.delete(@edges, id)
 
   @spec all_nodes() :: [tuple()]
-  def all_nodes, do: :ets.tab2list(@nodes)
+  def all_nodes, do: :ets.tab2list(@nodes) |> Enum.map(fn {_id, node} -> node end)
 
   @spec all_edges() :: [tuple()]
-  def all_edges, do: :ets.tab2list(@edges)
+  def all_edges, do: :ets.tab2list(@edges) |> Enum.map(fn {_id, edge} -> edge end)
 
   def get_edges_by_from(node_id) do
     :ets.tab2list(@edges)

@@ -1,16 +1,22 @@
 defmodule Skulldb.Graph.Indexes do
+  use GenServer
+
   @out_edges :skulldb_out_edges
   @in_edges :skulldb_in_edges
   @label_index :skulldb_label_index
   @props_index :skulldb_props_index
 
-  @spec init :: :ok
-  def init do
+  def start_link(_) do
+    GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
+  end
+
+  @impl true
+  def init(_) do
     :ets.new(@out_edges, [:bag, :public, :named_table, read_concurrency: true])
     :ets.new(@in_edges, [:bag, :public, :named_table, read_concurrency: true])
     :ets.new(@label_index, [:bag, :public, :named_table, read_concurrency: true])
     :ets.new(@props_index, [:bag, :public, :named_table, read_concurrency: true])
-    :ok
+    {:ok, %{}}
   end
 
   @spec index_edge(Skulldb.Graph.Edge.t()) :: boolean()

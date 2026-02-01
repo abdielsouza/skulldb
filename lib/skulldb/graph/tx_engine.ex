@@ -15,6 +15,12 @@ defmodule Skulldb.Graph.TxEngine do
     %Transaction{id: make_ref(), ops: [], undo: [], state: :open, metadata: []}
   end
 
+  @doc """
+  This function resets the security logs about transactions.
+
+  ## Returns:
+    `:ok`
+  """
   @spec reset() :: :ok
   def reset do
     TransactionManager.reset_logs()
@@ -39,7 +45,7 @@ defmodule Skulldb.Graph.TxEngine do
 
   @doc """
   It rollbacks the given transaction in the engine, undoing the
-  last actions executed.
+  last changes programmed.
 
   ## Parameters:
     - `tx`: The transaction to rollback.
@@ -75,6 +81,28 @@ defmodule Skulldb.Graph.TxEngine do
     undo = {:delete_node, node.id}
 
     %{tx | ops: [op | tx.ops], undo: [undo | tx.undo], metadata: [node_id: node.id]}
+  end
+
+  @doc """
+  It formulates a new transaction to create an edge.
+
+  ## Parameters:
+    - `tx`: The given transaction.
+    - `type`: The relation type.
+    - `from`: The sender.
+    - `to`: The receptor.
+    - `props`: The node properties.
+
+  ## Returns:
+    The transformed transaction.
+  """
+  @spec create_edge(Transaction.t(), atom(), binary(), binary(), map()) :: Transaction.t()
+  def create_edge(tx, type, from, to, props) do
+    edge = Engine.__build_edge__(type, from, to, props)
+    op = {:create_edge, edge}
+    undo = {:delete_edge, edge.id}
+
+    %{tx | ops: [op | tx.ops], undo: [undo | tx.undo], metadata: [edge_id: edge.id]}
   end
 
   @doc """
@@ -128,6 +156,28 @@ defmodule Skulldb.Graph.TxEngine do
       %{tx | ops: [op | tx.ops], undo: [undo | tx.undo], metadata: Keyword.new()}
     else
       _ -> {:error, :node_not_found}
+    end
+  end
+
+  @doc """
+  It formulates a new transaction to delete an edge.
+
+  ## Parameters:
+    - `tx`: The given transaction.
+    - `id`: The edge id.
+
+  ## Returns:
+    The transformed transaction.
+  """
+  @spec delete_edge(Transaction.t(), String.t()) :: Transaction.t()
+  def delete_edge(tx, id) do
+    with {:ok, edge} <- Store.get_edge(id) do
+      op = {:delete_edge, id}
+      undo = {:restore_edge, edge}
+
+     %{tx | ops: [op | tx.ops], undo: [undo | tx.undo], metadata: Keyword.new()}
+    else
+      _ -> {:error, :edge_not_found}
     end
   end
 
@@ -188,4 +238,7 @@ defmodule Skulldb.Graph.TxEngine do
     Engine.__insert_node__(node)
     Enum.each(edges, &Engine.__insert_edge__/1)
   end
+
+  def apply_undo({:restore_edge, edge}),
+    do: Engine.__insert_edge__(edge)
 end

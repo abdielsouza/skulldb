@@ -14,11 +14,29 @@ defmodule Skulldb.Graph.TransactionManager do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
 
+  @doc """
+  It commits the given transaction and apply the data changes to the database.
+
+  ## Parameters:
+    - `tx`: The given transaction.
+
+  ## Returns:
+    `{:reply, {:ok, %{tx | state: :commited}}, %{state | last_tx_id: tx.id}}`
+  """
   @spec commit(tx :: Transaction.t()) :: term()
   def commit(tx) do
     GenServer.call(__MODULE__, {:commit, tx}, :infinity)
   end
 
+  @doc """
+  It rollbacks the given transaction and undo the last actions.
+
+  ## Parameters:
+    - `tx`: The given transaction.
+
+  ## Returns:
+    `{:reply, {:ok, %{tx | state: :rolled_back}}, %{state | last_tx_id: nil}}`
+  """
   @spec rollback(tx :: Transaction.t()) :: term()
   def rollback(tx) do
     GenServer.call(__MODULE__, {:rollback, tx}, :infinity)
@@ -31,7 +49,7 @@ defmodule Skulldb.Graph.TransactionManager do
 
   @spec reset_logs() :: term()
   def reset_logs do
-    GenServer.call(__MODULE__, :reset_logs)
+    GenServer.call(__MODULE__, :reset_logs, :infinity)
   end
 
   ## ================
@@ -43,16 +61,21 @@ defmodule Skulldb.Graph.TransactionManager do
 
   @impl true
   def handle_call({:commit, tx}, _from, state) do
-    entry = %{
-      tx_id: tx.id,
-      ops: Enum.reverse(tx.ops),
-      timestamp: System.system_time(:millisecond)
-    }
+    try do
+      entry = %{
+        tx_id: tx.id,
+        ops: Enum.reverse(tx.ops),
+        timestamp: System.system_time(:millisecond)
+      }
 
-    :ok = WAL.append(entry)
-    Enum.each(entry.ops, &TxEngine.apply_op/1)
+      :ok = WAL.append(entry)
+      Enum.each(entry.ops, &TxEngine.apply_op/1)
 
-    {:reply, {:ok, tx}, %{state | last_tx_id: tx.id}}
+      {:reply, {:ok, %{tx | state: :commited}}, %{state | last_tx_id: tx.id}}
+    catch
+      kind, reason ->
+        {:reply, {:error, {kind, reason}}, state}
+    end
   end
 
   @impl true

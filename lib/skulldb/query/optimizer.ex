@@ -1,5 +1,5 @@
 defmodule Skulldb.Query.Optimizer do
-	alias Skulldb.Query.Plan.{Filter, Project, Pipe, IndexScan, NodeScan, Expand}
+	alias Skulldb.Query.Plan.{Filter, Project, Pipe, IndexScan, NodeScan, Expand, OrderBy}
 	alias Skulldb.SkullQL.AST
 
 	def optimize(plan) do
@@ -34,6 +34,9 @@ defmodule Skulldb.Query.Optimizer do
 	%{proj | input: pushdown_filters(proj.input)}
 	end
 
+	defp pushdown_filters(%OrderBy{} = order) do
+		%{order | input: pushdown_filters(order.input)}
+	end
 
 	defp pushdown_filters(other), do: other
 
@@ -54,6 +57,10 @@ defmodule Skulldb.Query.Optimizer do
 
 	defp remove_redundant_pipes(%Filter{} = filter) do
 		%{filter | input: remove_redundant_pipes(filter.input)}
+	end
+
+	defp remove_redundant_pipes(%OrderBy{} = order) do
+		%{order | input: remove_redundant_pipes(order.input)}
 	end
 
 	defp remove_redundant_pipes(other), do: other

@@ -4,15 +4,28 @@ defmodule Skulldb do
   """
 
   @doc """
-  Hello world.
+  Sets the data directory for persistence files.
 
   ## Examples
 
-      iex> Skulldb.hello()
-      :world
+      iex> Skulldb.set_data_dir("/tmp/skulldb_data")
+      :ok
 
   """
-  def hello do
-    :world
+  def set_data_dir(dir) do
+    Application.put_env(:skulldb, :data_dir, dir)
+  end
+
+  @doc """
+  Gets the current data directory.
+
+  ## Examples
+
+      iex> Skulldb.get_data_dir()
+      "data"
+
+  """
+  def get_data_dir() do
+    Application.get_env(:skulldb, :data_dir, "data")
   end
 end

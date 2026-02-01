@@ -9,10 +9,6 @@ defmodule Skulldb.Graph.Engine do
   """
   @spec init :: :ok
   def init do
-    Store.init()
-    Indexes.init()
-    WAL.init()
-
     case Snapshot.load() do
       {:ok, meta} ->
         WAL.replay(fn entry ->
@@ -111,6 +107,17 @@ defmodule Skulldb.Graph.Engine do
     end
   end
 
+  @doc """
+  Deletes the node with the given id.
+
+  ## Parameters:
+    - `id`: The node id.
+
+  ## Returns:
+    `:error | :ok`
+
+    On success, the `:ok` atom. On failure, the `:error` atom.
+  """
   @spec delete_node(String.t()) :: :error | :ok
   def delete_node(id) do
     with {:ok, node} <- get_node(id) do
@@ -123,6 +130,17 @@ defmodule Skulldb.Graph.Engine do
     end
   end
 
+  @doc """
+  Deletes the edge with the given id.
+
+  ## Parameters:
+    - `id`: The edge id.
+
+  ## Returns:
+    `:error | :ok`
+
+    On success, the `:ok` atom. On failure, the `:error` atom.
+  """
   @spec delete_edge(String.t()) :: :error | :ok
   def delete_edge(edge_id) do
     with {:ok, edge} <- get_edge(edge_id) do
@@ -131,6 +149,9 @@ defmodule Skulldb.Graph.Engine do
       :ok
     end
   end
+
+  def get_all_nodes(), do: Store.all_nodes()
+  def get_all_edges(), do: Store.all_edges()
 
   ## = = = = = = = = = = =
   ## ** MINOR HELPERS **
@@ -168,6 +189,11 @@ defmodule Skulldb.Graph.Engine do
     |> Enum.map(fn {:ok, node} -> node end)
   end
 
+  def clear_all() do
+    Indexes.clear()
+    Store.clear()
+  end
+
   ## = = = = = = = = = = =
   ## ** INTERNAL FUNCS **
   ## = = = = = = = = = = =
@@ -200,6 +226,10 @@ defmodule Skulldb.Graph.Engine do
 
   def __build_node__(labels, props) do
     %Node{id: uuid(), labels: MapSet.new(labels), properties: props}
+  end
+
+  def __build_edge__(type, from, to, props) do
+    %Edge{id: uuid(), type: type, from: from, to: to, properties: props}
   end
 
   def __insert_node__(node) do

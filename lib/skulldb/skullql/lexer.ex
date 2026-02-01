@@ -5,7 +5,7 @@ defmodule Skulldb.SkullQL.Lexer do
   returning the results to be passed to the parser.
   """
 
-  @keywords ~w(MATCH WHERE RETURN AND OR true false null)
+  @keywords ~w(MATCH WHERE RETURN AND OR ORDER BY ASC DESC true false null)
 
   @symbols %{
     ?( => :lparen,
@@ -28,6 +28,7 @@ defmodule Skulldb.SkullQL.Lexer do
     "<=" => :lte,
     ">=" => :gte,
     "->" => :arrow,
+    "<-" => :larrow,
   }
 
   def tokenize(input) when is_binary(input) do
@@ -50,8 +51,8 @@ defmodule Skulldb.SkullQL.Lexer do
   end
 
 
-  # Operadores de dois caracteres (!=, <=, >=)
-  defp do_tokenize([c1, c2 | rest], current, tokens) when <<c1, c2>> in ["=", "!=", "<", ">", "<=", ">=", "->"] do
+  # Operadores de dois caracteres (!=, <=, >=, ->, <-)
+  defp do_tokenize([c1, c2 | rest], current, tokens) when <<c1, c2>> in ["!=", "<=", ">=", "->", "<-"] do
     tokens = flush_current(current, tokens)
     do_tokenize(rest, [], [{:op, @operators[<<c1, c2>>]} | tokens])
   end
