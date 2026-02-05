@@ -13,7 +13,7 @@ defmodule Skulldb.Graph.Node do
   - `properties`: The node properties.
   """
   @type t :: %__MODULE__{
-    id: integer(),
+    id: String.t(),
     labels: MapSet.t(),
     properties: Keyword.t()
   }

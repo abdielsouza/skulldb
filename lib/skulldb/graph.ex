@@ -8,11 +8,11 @@ defmodule Skulldb.Graph do
   # CRUD functions.
   # ========================================
 
-  @spec create_node(Transaction.t(), list(), map()) :: Transaction.t()
+  @spec create_node(Transaction.t(), list(), Keyword.t() | map()) :: Transaction.t()
   def create_node(tx, labels \\ [], properties \\ Keyword.new()),
     do: TxEngine.create_node(tx, labels, properties)
 
-  @spec create_edge(Transaction.t(), atom(), binary(), binary(), map()) :: Transaction.t()
+  @spec create_edge(Transaction.t(), atom(), binary(), binary(), Keyword.t() | map()) :: Transaction.t()
   def create_edge(tx, type, from, to, properties \\ Keyword.new()),
     do: TxEngine.create_edge(tx, type, from, to, properties)
 
@@ -55,7 +55,7 @@ defmodule Skulldb.Graph do
     Store.get_edges_by_from(id)
     |> Enum.filter(&(&1.type == rel_type))
     |> Enum.map(fn edge ->
-      get_node(edge.to.id)
+      get_node(edge.to)
     end)
     |> Enum.reject(&is_nil/1)
   end
@@ -64,7 +64,7 @@ defmodule Skulldb.Graph do
     Store.get_edges_by_to(id)
     |> Enum.filter(&(&1.type ==  rel_type))
     |> Enum.map(fn edge ->
-      get_node(edge.from.id)
+      get_node(edge.from)
     end)
     |> Enum.reject(&is_nil/1)
   end

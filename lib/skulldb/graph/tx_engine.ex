@@ -1,7 +1,7 @@
 defmodule Skulldb.Graph.TxEngine do
   alias Skulldb.Graph.{Transaction, Engine, Store, Indexes, TransactionManager}
 
-  @typep changes_map :: %{labels: list(), properties: map()}
+  @typep changes_map :: %{labels: list(), properties: Keyword.t() | map()}
 
   ## = = = = = = = = = = = = = = = =
   ## ** TX_ENGINE BASIC ACTIONS **
@@ -35,12 +35,14 @@ defmodule Skulldb.Graph.TxEngine do
     - `tx`: The transaction to commit.
 
   ## Returns:
-    The commited transaction with changed state.
+    The commited transaction with changed state or error tuple.
   """
-  @spec commit(Transaction.t()) :: Transaction.t()
+  @spec commit(Transaction.t()) :: Transaction.t() | {:error, term()}
   def commit(%Transaction{state: :open} = tx) do
-    {:ok, new_tx} = TransactionManager.commit(tx)
-    new_tx
+    case TransactionManager.commit(tx) do
+      {:ok, new_tx} -> new_tx
+      {:error, _reason} = error -> error
+    end
   end
 
   @doc """
@@ -74,9 +76,9 @@ defmodule Skulldb.Graph.TxEngine do
   ## Returns:
     The transformed transaction.
   """
-  @spec create_node(Transaction.t(), list(), map()) :: Transaction.t()
+  @spec create_node(Transaction.t(), list(), Keyword.t() | map()) :: Transaction.t()
   def create_node(tx, labels, props) do
-    node = Engine.__build_node__(labels, props)
+    node = Engine.__build_node__(labels, normalize_properties(props))
     op = {:create_node, node}
     undo = {:delete_node, node.id}
 
@@ -96,9 +98,9 @@ defmodule Skulldb.Graph.TxEngine do
   ## Returns:
     The transformed transaction.
   """
-  @spec create_edge(Transaction.t(), atom(), binary(), binary(), map()) :: Transaction.t()
+  @spec create_edge(Transaction.t(), atom(), binary(), binary(), Keyword.t() | map()) :: Transaction.t()
   def create_edge(tx, type, from, to, props) do
-    edge = Engine.__build_edge__(type, from, to, props)
+    edge = Engine.__build_edge__(type, from, to, normalize_properties(props))
     op = {:create_edge, edge}
     undo = {:delete_edge, edge.id}
 
@@ -116,10 +118,11 @@ defmodule Skulldb.Graph.TxEngine do
   ## Returns:
     The transformed transaction.
   """
-  @spec update_node(Transaction.t(), String.t(), changes_map()) :: Transaction.t()
+  @spec update_node(Transaction.t(), String.t(), changes_map() | Keyword.t() | map()) :: Transaction.t() | {:error, term()}
   def update_node(tx, id, changes) do
     with {:ok, old} <- Store.get_node(id) do
-      new = Engine.__apply_node_changes__(old, changes)
+      normalized_changes = normalize_changes(old, changes)
+      new = Engine.__apply_node_changes__(old, normalized_changes)
       op = {:update_node, new}
       undo = {:update_node, old}
 
@@ -208,6 +211,42 @@ defmodule Skulldb.Graph.TxEngine do
   def get_edge(id) do
     Engine.get_edge(id)
   end
+
+  defp normalize_changes(old, changes) when is_map(changes) do
+    cond do
+      Map.has_key?(changes, :labels) or Map.has_key?(changes, :properties) ->
+        labels = Map.get(changes, :labels, MapSet.to_list(old.labels))
+        props = Map.get(changes, :properties, old.properties)
+
+        %{
+          labels: labels,
+          properties: merge_properties(old.properties, props)
+        }
+
+      true ->
+        %{
+          labels: MapSet.to_list(old.labels),
+          properties: merge_properties(old.properties, changes)
+        }
+    end
+  end
+
+  defp normalize_changes(old, changes) when is_list(changes) do
+    %{
+      labels: MapSet.to_list(old.labels),
+      properties: merge_properties(old.properties, changes)
+    }
+  end
+
+  defp merge_properties(existing, incoming) do
+    existing_list = normalize_properties(existing)
+    incoming_list = normalize_properties(incoming)
+    Keyword.merge(existing_list, incoming_list)
+  end
+
+  defp normalize_properties(props) when is_map(props), do: Enum.to_list(props)
+  defp normalize_properties(props) when is_list(props), do: props
+  defp normalize_properties(_), do: []
 
   # ========================
   # DO NOT TOUCH IT BELOW!!

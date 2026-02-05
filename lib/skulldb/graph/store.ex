@@ -41,13 +41,13 @@ defmodule Skulldb.Graph.Store do
 
   def get_edges_by_from(node_id) do
     :ets.tab2list(@edges)
-    |> Enum.filter(&match?({_, %{from: %{id: ^node_id}}}, &1))
+    |> Enum.filter(&match?({_, %{from: ^node_id}}, &1))
     |> Enum.map(&elem(&1, 1))
   end
 
   def get_edges_by_to(node_id) do
     :ets.tab2list(@edges)
-    |> Enum.filter(&match?({_, %{to: %{id: ^node_id}}}, &1))
+    |> Enum.filter(&match?({_, %{to: ^node_id}}, &1))
     |> Enum.map(&elem(&1, 1))
   end
 

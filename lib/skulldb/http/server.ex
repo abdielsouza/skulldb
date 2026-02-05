@@ -102,7 +102,7 @@ defmodule Skulldb.HTTP.Server do
     with {:ok, context} <- get_context(conn),
          {:ok, params} <- validate_params(conn.body_params, [:changes]),
          tx <- API.begin_transaction(),
-         tx <- API.update_node(context, tx, id, parse_props(params["changes"])),
+         %Skulldb.Graph.Transaction{} = tx <- API.update_node(context, tx, id, parse_props(params["changes"])),
          {:ok, _result} <- API.commit_transaction(tx) do
       send_json(conn, 200, %{success: true, message: "Node updated"})
     else
@@ -114,9 +114,66 @@ defmodule Skulldb.HTTP.Server do
   delete "/nodes/:id" do
     with {:ok, context} <- get_context(conn),
          tx <- API.begin_transaction(),
-         tx <- API.delete_node(context, tx, id),
+         %Skulldb.Graph.Transaction{} = tx <- API.delete_node(context, tx, id),
          {:ok, _result} <- API.commit_transaction(tx) do
       send_json(conn, 200, %{success: true, message: "Node deleted"})
+    else
+      {:error, reason} ->
+        send_error(conn, 400, reason)
+    end
+  end
+
+  # ========================================
+  # Edge operations
+  # ========================================
+
+  get "/edges" do
+    with {:ok, _context} <- get_context(conn) do
+      edges = API.all_edges()
+      send_json(conn, 200, %{success: true, edges: serialize_edges(edges)})
+    else
+      {:error, reason} -> send_error(conn, 401, reason)
+    end
+  end
+
+  get "/edges/:id" do
+    with {:ok, _context} <- get_context(conn),
+         edge when not is_nil(edge) <- API.get_edge(id) do
+      send_json(conn, 200, %{success: true, edge: serialize_edge(edge)})
+    else
+      nil ->
+        send_error(conn, 404, "Edge not found")
+
+      {:error, reason} ->
+        send_error(conn, 401, reason)
+    end
+  end
+
+  post "/edges" do
+    with {:ok, _context} <- get_context(conn),
+         {:ok, params} <- validate_params(conn.body_params, [:type, :from, :to]),
+         type <- String.to_atom(params["type"]),
+         from <- params["from"],
+         to <- params["to"],
+         props <- Map.get(params, "properties", []) |> parse_props(),
+         tx <- API.begin_transaction(),
+         tx <- API.create_edge(tx, type, from, to, props),
+         {:ok, result} <- API.commit_transaction(tx) do
+      edge_id = Keyword.get(result.metadata, :edge_id)
+      edge = API.get_edge(edge_id)
+      send_json(conn, 201, %{success: true, edge: serialize_edge(edge)})
+    else
+      {:error, reason} ->
+        send_error(conn, 400, reason)
+    end
+  end
+
+  delete "/edges/:id" do
+    with {:ok, _context} <- get_context(conn),
+         tx <- API.begin_transaction(),
+         tx <- API.delete_edge(tx, id),
+         {:ok, _result} <- API.commit_transaction(tx) do
+      send_json(conn, 200, %{success: true, message: "Edge deleted"})
     else
       {:error, reason} ->
         send_error(conn, 400, reason)
@@ -129,9 +186,15 @@ defmodule Skulldb.HTTP.Server do
 
   post "/query" do
     with {:ok, context} <- get_context(conn),
-         {:ok, params} <- validate_params(conn.body_params, [:query]),
-         {:ok, results} <- API.query(context, params["query"]) do
-      send_json(conn, 200, %{success: true, results: results})
+         {:ok, params} <- validate_params(conn.body_params, [:query]) do
+      case API.query(context, params["query"]) do
+        {:error, reason} ->
+          send_error(conn, 400, reason)
+
+        results ->
+          serialized_results = serialize_query_results(results)
+          send_json(conn, 200, %{success: true, results: serialized_results})
+      end
     else
       {:error, reason} ->
         send_error(conn, 400, reason)
@@ -196,14 +259,51 @@ defmodule Skulldb.HTTP.Server do
   defp serialize_node(node) do
     %{
       id: node.id,
-      labels: node.labels,
-      properties: node.properties
+      labels: MapSet.to_list(node.labels),
+      properties: Map.new(node.properties)
     }
   end
 
   defp serialize_nodes(nodes) do
     Enum.map(nodes, &serialize_node/1)
   end
+
+  defp serialize_edge(edge) do
+    %{
+      id: edge.id,
+      type: edge.type,
+      from: edge.from,
+      to: edge.to,
+      properties: Map.new(edge.properties)
+    }
+  end
+
+  defp serialize_edges(edges) do
+    Enum.map(edges, &serialize_edge/1)
+  end
+
+  defp serialize_query_results(results) when is_list(results) do
+    Enum.map(results, fn
+      %Skulldb.Graph.Node{} = node -> serialize_node(node)
+      %{} = map -> Map.new(map, fn {k, v} -> {k, serialize_value(v)} end)
+      other -> serialize_value(other)
+    end)
+  end
+
+  defp serialize_query_results(result), do: serialize_value(result)
+
+  defp serialize_value(%Skulldb.Graph.Node{} = node), do: serialize_node(node)
+  defp serialize_value(%Skulldb.Graph.Edge{} = edge), do: serialize_edge(edge)
+  defp serialize_value(%MapSet{} = set), do: MapSet.to_list(set)
+  defp serialize_value(list) when is_list(list) do
+    if Keyword.keyword?(list) do
+      Map.new(list)
+    else
+      Enum.map(list, &serialize_value/1)
+    end
+  end
+  defp serialize_value(%{} = map), do: Map.new(map, fn {k, v} -> {k, serialize_value(v)} end)
+  defp serialize_value(other), do: other
 
   defp send_json(conn, status, data) do
     conn

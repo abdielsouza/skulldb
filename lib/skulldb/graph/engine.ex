@@ -238,10 +238,16 @@ defmodule Skulldb.Graph.Engine do
   end
 
   def __replace_node__(node) do
-    {:ok, old} = Store.get_node(node.id)
-    Indexes.deindex_node(old)
-    Store.put_node(node)
-    Indexes.index_node(node)
+    case Store.get_node(node.id) do
+      {:ok, old} ->
+        Indexes.deindex_node(old)
+        Store.put_node(node)
+        Indexes.index_node(node)
+        :ok
+
+      :error ->
+        :error
+    end
   end
 
   def __insert_edge__(edge) do

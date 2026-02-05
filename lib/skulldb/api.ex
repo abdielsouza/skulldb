@@ -11,7 +11,8 @@ defmodule Skulldb.API do
 
   # Node operations - with context support
   def create_node(labels \\ [], props \\ []), do: create_node(Context.anonymous(), labels, props)
-  def create_node(tx, labels, props), do: create_node(Context.anonymous(), tx, labels, props)
+  def create_node(%Skulldb.Graph.Transaction{} = tx, labels, props),
+    do: create_node(Context.anonymous(), tx, labels, props)
 
   def create_node(%Context{} = context, labels, props) when is_list(labels) do
     with :ok <- Authorization.authorize(context, :create, :node) do
@@ -32,7 +33,7 @@ defmodule Skulldb.API do
   end
 
   # Edge operations
-  def create_edge(from_id, to_id, label, props \\ []), do: Engine.create_edge(from_id, to_id, label, props)
+  def create_edge(from_id, to_id, label, props \\ []), do: Engine.create_edge(label, from_id, to_id, props)
   def create_edge(tx, type, from, to, props), do: Graph.create_edge(tx, type, from, to, props)
 
   # Query - with context support

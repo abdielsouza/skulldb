@@ -39,8 +39,6 @@ defmodule Skulldb.AuditLog do
         metadata: inspect(metadata)
       ])
 
-    Graph.commit_changes(tx)
-
     # Also log to standard logger for debugging
     require Logger
 
@@ -49,7 +47,13 @@ defmodule Skulldb.AuditLog do
       audit: log_entry
     )
 
-    :ok
+    # Try to commit, but don't fail if audit log can't be written
+    case Graph.commit_changes(tx) do
+      %Skulldb.Graph.Transaction{} -> :ok
+      {:error, reason} ->
+        Logger.warning("Failed to write audit log: #{inspect(reason)}")
+        :ok
+    end
   end
 
   @doc """

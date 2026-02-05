@@ -72,8 +72,8 @@ defmodule SkulldbTransactionTest do
 
     with [n1] <- Graph.nodes_by_property(:name, "Alex"), [n2] <- Graph.nodes_by_property(:name, "Max") do
       # Here we test for commit state and status of data change.
-      assert Map.fetch!(n1.properties, :xp) == 15, "failed to update a property."
-      assert match?([:player, :admin], n2.labels), "failed to update node labels."
+      assert Keyword.get(n1.properties, :xp) == 15, "failed to update a property."
+      assert MapSet.to_list(n2.labels) |> Enum.sort() == [:admin, :player], "failed to update node labels."
     end
   end
 

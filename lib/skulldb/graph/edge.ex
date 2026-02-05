@@ -18,9 +18,9 @@ defmodule Skulldb.Graph.Edge do
   - `properties`: Additional properties to give more details about a relationship.
   """
   @type t :: %__MODULE__{
-    id: integer(),
-    from: integer(),
-    to: integer(),
+    id: String.t(),
+    from: String.t(),
+    to: String.t(),
     type: atom(),
     properties: Keyword.t()
   }

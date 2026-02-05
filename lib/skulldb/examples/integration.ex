@@ -34,13 +34,13 @@ defmodule Skulldb.Examples.Integration do
   """
   def example_multi_tenant do
     # Create users for different tenants
-    {:ok, user1} = Auth.create_user(
+    {:ok, _user1} = Auth.create_user(
       "tenant1@example.com",
       "password",
       %{tenant_id: "tenant_1", name: "Tenant 1 User"}
     )
 
-    {:ok, user2} = Auth.create_user(
+    {:ok, _user2} = Auth.create_user(
       "tenant2@example.com",
       "password",
       %{tenant_id: "tenant_2", name: "Tenant 2 User"}
@@ -86,7 +86,7 @@ defmodule Skulldb.Examples.Integration do
     Authorization.assign_role(admin_user.id, :admin)
 
     # Create regular user
-    {:ok, regular_user} = Auth.create_user(
+    {:ok, _regular_user} = Auth.create_user(
       "user@example.com",
       "user_password",
       %{name: "Regular User"}

@@ -49,7 +49,7 @@ defmodule Skulldb.Graph.Indexes do
     end)
   end
 
-  @spec nodes_by_label(String.t()) :: list()
+  @spec nodes_by_label(atom() | String.t()) :: list()
   def nodes_by_label(label), do: lookup_ids(@label_index, label)
 
   @spec nodes_by_property(atom(), term()) :: list()

@@ -36,11 +36,18 @@ defmodule Skulldb.Auth.User do
       ]
 
       tx = Graph.create_node(tx, [:User], user_props)
-      {:ok, result} = Graph.commit_changes(tx)
+      committed_tx = Graph.commit_changes(tx)
 
-      # Get the created node
-      [node] = result.nodes_created
-      {:ok, from_node(node)}
+      case Keyword.get(committed_tx.metadata, :node_id) do
+        nil ->
+          {:error, :node_not_found}
+
+        node_id ->
+          case Graph.get_node(node_id) do
+            nil -> {:error, :node_not_found}
+            node -> {:ok, from_node(node)}
+          end
+      end
     else
       {:error, reason} -> {:error, reason}
     end
@@ -82,9 +89,13 @@ defmodule Skulldb.Auth.User do
     tx = Graph.new_transaction()
 
     updated_changes =
-      changes
-      |> Map.put(:updated_at, DateTime.utc_now() |> DateTime.to_iso8601())
-      |> Enum.to_list()
+      case changes do
+        changes when is_list(changes) ->
+          Keyword.put(changes, :updated_at, DateTime.utc_now() |> DateTime.to_iso8601())
+
+        changes when is_map(changes) ->
+          Map.put(changes, :updated_at, DateTime.utc_now() |> DateTime.to_iso8601())
+      end
 
     tx = Graph.update_node(tx, user_id, updated_changes)
     Graph.commit_changes(tx)

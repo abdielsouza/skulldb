@@ -63,8 +63,8 @@ defmodule SkulldbSkullQLTest do
       {:ok, n1} = Engine.create_node([:User], %{name: "John", age: 25})
       {:ok, n2} = Engine.create_node([:User], %{name: "Carl", age: 20})
       {:ok, n3} = Engine.create_node([:User], %{name: "Anna", age: 19})
-      {:ok, _e1} = Engine.create_edge(:FRIEND, n1, n2)
-      {:ok, _e2} = Engine.create_edge(:FRIEND, n1, n3)
+      {:ok, _e1} = Engine.create_edge(:FRIEND, n1.id, n2.id)
+      {:ok, _e2} = Engine.create_edge(:FRIEND, n1.id, n3.id)
 
       results = Query.read_from_string("MATCH (u:User)-[:FRIEND]->(f) WHERE f.age >= 18 RETURN f.name, f.age")
 
