@@ -62,7 +62,7 @@ ENV HOME=/app
 EXPOSE 4000
 
 # Volume for data persistence
-VOLUME ["/data"]
+# VOLUME ["/data"]
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
