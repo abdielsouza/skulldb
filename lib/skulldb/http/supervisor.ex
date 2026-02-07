@@ -11,7 +11,7 @@ defmodule Skulldb.HTTP.Supervisor do
 
   @impl true
   def init(_opts) do
-    port = Application.get_env(:skulldb, :http_port, 4000)
+    port = Skulldb.Config.http_port()
 
     children = [
       {Plug.Cowboy, scheme: :http, plug: Skulldb.HTTP.Server, options: [port: port]}

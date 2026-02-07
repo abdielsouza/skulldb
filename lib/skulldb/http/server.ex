@@ -14,6 +14,15 @@ defmodule Skulldb.HTTP.Server do
   alias Skulldb.{API, Auth, Context}
 
   # ========================================
+  # Swagger UI Documentation
+  # ========================================
+  # Mount Swagger UI at /api/docs
+  # View API documentation and test endpoints interactively
+  # Access: http://localhost:4000/api/docs
+
+  forward("/api/docs", to: Skulldb.HTTP.SwaggerUI)
+
+  # ========================================
   # Authentication endpoints
   # ========================================
 
@@ -201,14 +210,12 @@ defmodule Skulldb.HTTP.Server do
     end
   end
 
-  # ========================================
   # Health check
-  # ========================================
-
   get "/health" do
     send_json(conn, 200, %{
       status: "ok",
-      version: Application.spec(:skulldb, :vsn) |> to_string()
+      version: Application.spec(:skulldb, :vsn) |> to_string(),
+      docs: "Visit /api/docs for API documentation"
     })
   end
 

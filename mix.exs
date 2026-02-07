@@ -30,6 +30,9 @@ defmodule Skulldb.MixProject do
       {:plug, "~> 1.15"},
       {:jason, "~> 1.4"},
 
+      # API Documentation
+      {:open_api_spex, "~> 3.18"},
+
       # Authentication (TODO: Add proper JWT and crypto libraries)
       # {:joken, "~> 2.6"},
       # {:argon2_elixir, "~> 4.0"},

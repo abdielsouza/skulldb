@@ -62,11 +62,11 @@ USER skulldb
 
 # Environment variables
 ENV SKULLDB_DATA_DIR=/data
-ENV SKULLDB_HTTP_PORT=4000
+ENV SKULLDB_HTTP_PORT=8080
 ENV HOME=/app
 
 # Expose HTTP port
-EXPOSE 4000
+EXPOSE 8080
 
 # Note: VOLUME removed for Railway compatibility
 # Railway manages volumes differently - use Railway volumes if persistence is needed
@@ -74,7 +74,7 @@ EXPOSE 4000
 
 # Health check (Railway may ignore this, but kept for local development)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:4000/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
 # Start the application
 CMD ["./bin/skulldb", "start"]
