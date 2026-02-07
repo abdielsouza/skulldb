@@ -89,7 +89,7 @@ defmodule Skulldb.HTTP.SwaggerUI do
         <script>
           window.onload = function() {
             const ui = SwaggerUIBundle({
-              url: "openapi.json",
+              url: "/api/docs/openapi.json",
               dom_id: '#swagger-ui',
               presets: [
                 SwaggerUIBundle.presets.apis,
