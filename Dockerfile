@@ -68,12 +68,8 @@ ENV HOME=/app
 # Expose HTTP port
 EXPOSE 4000
 
-<<<<<<< HEAD
-# Volume for data persistence
-=======
 # Note: VOLUME removed for Railway compatibility
 # Railway manages volumes differently - use Railway volumes if persistence is needed
->>>>>>> c311452 (fixed docker issues and adapted for deploy on Railway.)
 # VOLUME ["/data"]
 
 # Health check (Railway may ignore this, but kept for local development)
